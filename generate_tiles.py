@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from math import pi,cos,sin,log,exp,atan
+from math import pi, cos, sin, log, exp, atan
 from subprocess import call
 import sys, os
 from Queue import Queue
@@ -75,8 +75,8 @@ class RenderThread:
         p1 = ((x + 1) * 256, y * 256)
 
         # Convert to LatLong (EPSG:4326)
-        l0 = self.tileproj.fromPixelToLL(p0, z);
-        l1 = self.tileproj.fromPixelToLL(p1, z);
+        l0 = self.tileproj.fromPixelToLL(p0, z)
+        l1 = self.tileproj.fromPixelToLL(p1, z)
 
         # Convert to map projection (e.g. mercator co-ords EPSG:900913)
         c0 = self.prj.forward(mapnik.Coord(l0[0],l0[1]))
@@ -119,14 +119,14 @@ class RenderThread:
             if bytes == 103:
                 empty = " Empty Tile "
             self.printLock.acquire()
-            print name, ":", z, x, y, exists, empty
+            print(name, ":", z, x, y, exists, empty)
             self.printLock.release()
             self.q.task_done()
 
 
 
 def render_tiles(bbox, mapfile, tile_dir, minZoom=1,maxZoom=18, name="unknown", num_threads=NUM_THREADS, tms_scheme=False):
-    print "render_tiles(",bbox, mapfile, tile_dir, minZoom,maxZoom, name,")"
+    print("render_tiles(",bbox, mapfile, tile_dir, minZoom,maxZoom, name,")")
 
     # Launch rendering threads
     queue = Queue(32)
@@ -142,7 +142,7 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1,maxZoom=18, name="unknown", 
     if not os.path.isdir(tile_dir):
          os.mkdir(tile_dir)
 
-    gprj = GoogleProjection(maxZoom+1) 
+    gprj = GoogleProjection(maxZoom+1)
 
     ll0 = (bbox[0],bbox[3])
     ll1 = (bbox[2],bbox[1])
