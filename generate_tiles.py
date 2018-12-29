@@ -25,32 +25,31 @@ def minmax (a,b,c):
 
 class GoogleProjection:
     def __init__(self,levels=18):
-        self.Bc = []
-        self.Cc = []
-        self.zc = []
-        self.Ac = []
-        c = 256
-        for d in range(0,levels):
-            e = c/2;
-            self.Bc.append(c/360.0)
-            self.Cc.append(c/(2 * pi))
-            self.zc.append((e,e))
-            self.Ac.append(c)
-            c *= 2
-                
-    def fromLLtoPixel(self,ll,zoom):
-         d = self.zc[zoom]
-         e = round(d[0] + ll[0] * self.Bc[zoom])
-         f = minmax(sin(DEG_TO_RAD * ll[1]),-0.9999,0.9999)
-         g = round(d[1] + 0.5*log((1+f)/(1-f))*-self.Cc[zoom])
-         return (e,g)
-     
-    def fromPixelToLL(self,px,zoom):
-         e = self.zc[zoom]
-         f = (px[0] - e[0])/self.Bc[zoom]
-         g = (px[1] - e[1])/-self.Cc[zoom]
-         h = RAD_TO_DEG * ( 2 * atan(exp(g)) - 0.5 * pi)
-         return (f,h)
+        self.pixelsPerLonDegree = []
+        self.pixelsPerLonRadian = []
+        self.pixelsInLonHemisphere = []
+        self.globePixels = []
+        globePixels = 256
+        for _ in range(0, levels):
+            pixelsInLonHemisphere = globePixels
+            self.pixelsPerLonDegree.append(globePixels / 360.0)
+            self.pixelsPerLonRadian.append(globePixels / (2 * pi))
+            self.pixelsInLonHemisphere.append(pixelsInLonHemisphere)
+            self.globePixels.append(globePixels)
+            globePixels *= 2
+
+    def fromLLtoPixel(self, ll, zoom):
+         px = round(self.pixelsInLonHemisphere + ll[0] * self.pixelsPerLonDegree[zoom])
+         f = minmax(sin(DEG_TO_RAD * ll[1]), -0.9999, 0.9999)
+         py = round(self.pixelsInLonHemisphere + 0.5 * log((1 + f) / (1 - f)) * -self.pixelsPerLonRadian[zoom])
+         return (px, py)
+
+    def fromPixelToLL(self, pixel, zoom):
+         pixelsInLonHemisphere = self.pixelsInLonHemisphere[zoom]
+         lon = (pixel[0] - pixelsInLonHemisphere) / self.pixelsPerLonDegree[zoom]
+         g = (pixel[1] - pixelsInLonHemisphere) / -self.pixelsPerLonRadian[zoom]
+         lat = RAD_TO_DEG * (2 * atan(exp(g)) - 0.5 * pi)
+         return (lon, lat)
 
 
 
