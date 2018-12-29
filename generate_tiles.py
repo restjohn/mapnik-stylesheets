@@ -24,6 +24,7 @@ def minmax (a,b,c):
     return a
 
 class GoogleProjection:
+
     def __init__(self,levels=18):
         self.pixelsPerLonDegree = []
         self.pixelsPerLonRadian = []
@@ -54,6 +55,7 @@ class GoogleProjection:
 
 
 class RenderThread:
+
     def __init__(self, tile_dir, mapfile, q, printLock, maxZoom):
         self.tile_dir = tile_dir
         self.q = q
@@ -108,13 +110,13 @@ class RenderThread:
             else:
                 (name, tile_uri, x, y, z) = r
 
-            exists= ""
+            exists = ""
             if os.path.isfile(tile_uri):
-                exists= "exists"
+                exists = "exists"
             else:
                 self.render_tile(tile_uri, x, y, z)
-            bytes=os.stat(tile_uri)[6]
-            empty= ''
+            bytes = os.stat(tile_uri)[6]
+            empty = ''
             if bytes == 103:
                 empty = " Empty Tile "
             self.printLock.acquire()
@@ -124,7 +126,7 @@ class RenderThread:
 
 
 
-def render_tiles(bbox, mapfile, tile_dir, minZoom=1,maxZoom=18, name="unknown", num_threads=NUM_THREADS, tms_scheme=False):
+def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown", num_threads=NUM_THREADS, tms_scheme=False):
     print("render_tiles(",bbox, mapfile, tile_dir, minZoom,maxZoom, name,")")
 
     # Launch rendering threads
@@ -141,20 +143,20 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1,maxZoom=18, name="unknown", 
     if not os.path.isdir(tile_dir):
          os.mkdir(tile_dir)
 
-    gprj = GoogleProjection(maxZoom+1)
+    gprj = GoogleProjection(maxZoom + 1)
 
     ll0 = (bbox[0],bbox[3])
     ll1 = (bbox[2],bbox[1])
 
     for z in range(minZoom,maxZoom + 1):
-        px0 = gprj.fromLLtoPixel(ll0,z)
-        px1 = gprj.fromLLtoPixel(ll1,z)
+        px0 = gprj.fromLLtoPixel(ll0, z)
+        px1 = gprj.fromLLtoPixel(ll1, z)
 
         # check if we have directories in place
         zoom = "%s" % z
         if not os.path.isdir(tile_dir + zoom):
             os.mkdir(tile_dir + zoom)
-        for x in range(int(px0[0]/256.0),int(px1[0]/256.0)+1):
+        for x in range(int(px0[0] / 256.0), int(px1[0] / 256.0) + 1):
             # Validate x co-ordinate
             if (x < 0) or (x >= 2**z):
                 continue
@@ -209,47 +211,12 @@ if __name__ == "__main__":
     #
     # Start with an overview
     # World
-    bbox = (-180.0,-90.0, 180.0,90.0)
+    # bbox = (-180.0,-90.0, 180.0,90.0)
 
-    render_tiles(bbox, mapfile, tile_dir, 0, 5, "World")
+    # render_tiles(bbox, mapfile, tile_dir, 0, 5, "World")
 
-    minZoom = 10
+    minZoom = 16
     maxZoom = 16
-    bbox = (-2, 50.0,1.0,52.0)
+    bbox = (-77.179511, 38.915484, -76.937655, 39.057299)
     render_tiles(bbox, mapfile, tile_dir, minZoom, maxZoom)
 
-    # Muenchen
-    bbox = (11.4,48.07, 11.7,48.22)
-    render_tiles(bbox, mapfile, tile_dir, 1, 12 , "Muenchen")
-
-    # Muenchen+
-    bbox = (11.3,48.01, 12.15,48.44)
-    render_tiles(bbox, mapfile, tile_dir, 7, 12 , "Muenchen+")
-
-    # Muenchen++
-    bbox = (10.92,47.7, 12.24,48.61)
-    render_tiles(bbox, mapfile, tile_dir, 7, 12 , "Muenchen++")
-
-    # Nuernberg
-    bbox=(10.903198,49.560441,49.633534,11.038085)
-    render_tiles(bbox, mapfile, tile_dir, 10, 16, "Nuernberg")
-
-    # Karlsruhe
-    bbox=(8.179113,48.933617,8.489252,49.081707)
-    render_tiles(bbox, mapfile, tile_dir, 10, 16, "Karlsruhe")
-
-    # Karlsruhe+
-    bbox = (8.3,48.95,8.5,49.05)
-    render_tiles(bbox, mapfile, tile_dir, 1, 16, "Karlsruhe+")
-
-    # Augsburg
-    bbox = (8.3,48.95,8.5,49.05)
-    render_tiles(bbox, mapfile, tile_dir, 1, 16, "Augsburg")
-
-    # Augsburg+
-    bbox=(10.773251,48.369594,10.883834,48.438577)
-    render_tiles(bbox, mapfile, tile_dir, 10, 14, "Augsburg+")
-
-    # Europe+
-    bbox = (1.0,10.0, 20.6,50.0)
-    render_tiles(bbox, mapfile, tile_dir, 1, 11 , "Europe+")
