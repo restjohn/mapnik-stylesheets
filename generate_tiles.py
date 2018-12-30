@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 from math import pi, cos, sin, log, exp, atan
 from subprocess import call
-import sys, os
-from Queue import Queue
+import sys, os, threading
 
-import threading
+try:
+    from queue import Queue
+except:
+    from Queue import Queue
 
 try:
     import mapnik2 as mapnik
