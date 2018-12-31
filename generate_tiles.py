@@ -129,7 +129,11 @@ class RenderThread:
 
 
 def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown", num_threads=NUM_THREADS, tms_scheme=False):
-    print("render_tiles(",bbox, mapfile, tile_dir, minZoom,maxZoom, name,")")
+
+    print("render_tiles(", bbox, mapfile, tile_dir, minZoom,maxZoom, name,")")
+
+    if not os.path.isdir(tile_dir):
+         os.mkdir(tile_dir)
 
     # Launch rendering threads
     queue = Queue(32)
@@ -142,15 +146,12 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown",
         #print "Started render thread %s" % render_thread.getName()
         renderers[i] = render_thread
 
-    if not os.path.isdir(tile_dir):
-         os.mkdir(tile_dir)
-
     gprj = GoogleProjection(maxZoom + 1)
 
-    ll0 = (bbox[0],bbox[3])
-    ll1 = (bbox[2],bbox[1])
+    ll0 = (bbox[0], bbox[3])
+    ll1 = (bbox[2], bbox[1])
 
-    for z in range(minZoom,maxZoom + 1):
+    for z in range(minZoom, maxZoom + 1):
         px0 = gprj.fromLLtoPixel(ll0, z)
         px1 = gprj.fromLLtoPixel(ll1, z)
 
@@ -194,31 +195,15 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown",
 
 
 if __name__ == "__main__":
-    home = os.environ['HOME']
-    try:
-        mapfile = os.environ['MAPNIK_MAP_FILE']
-    except KeyError:
-        mapfile = home + "/svn.openstreetmap.org/applications/rendering/mapnik/osm-local.xml"
-    try:
-        tile_dir = os.environ['MAPNIK_TILE_DIR']
-    except KeyError:
-        tile_dir = home + "/osm/tiles/"
 
-    if not tile_dir.endswith('/'):
-        tile_dir = tile_dir + '/'
+    tiles_name = os.environ["TILES_NAME"]
+    tiles_bbox = os.environ["TILES_BBOX"]
+    tiles_style_url = os.environ["TILES_MAPNIK_STYLE"]
+    tiles_dir = "/tiles/%(tiles_name)s/" % locals()
 
-    #-------------------------------------------------------------------------
-    #
-    # Change the following for different bounding boxes and zoom levels
-    #
-    # Start with an overview
-    # World
-    # bbox = (-180.0,-90.0, 180.0,90.0)
 
-    # render_tiles(bbox, mapfile, tile_dir, 0, 5, "World")
 
     minZoom = 16
     maxZoom = 16
     bbox = (-77.179511, 38.915484, -76.937655, 39.057299)
     render_tiles(bbox, mapfile, tile_dir, minZoom, maxZoom)
-
