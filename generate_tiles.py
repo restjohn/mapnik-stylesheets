@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 from math import pi, cos, sin, log, exp, atan
 from subprocess import call
-import sys, os, threading
+import sys
+import os
+import threading
+import spherical_mercator
 
 try:
     from queue import Queue
@@ -13,47 +16,9 @@ try:
 except:
     import mapnik
 
-DEG_TO_RAD = pi/180
-RAD_TO_DEG = 180/pi
 
 # Default number of rendering threads to spawn, should be roughly equal to number of CPU cores available
 NUM_THREADS = 4
-
-
-def minmax(a, b, c):
-    a = max(a, b)
-    a = min(a, c)
-    return a
-
-class GoogleProjection:
-
-    def __init__(self,levels=18):
-        self.pixelsPerLonDegree = []
-        self.pixelsPerLonRadian = []
-        self.pixelsInLonHemisphere = []
-        self.globePixels = []
-        globePixels = 256
-        for _ in range(0, levels):
-            pixelsInLonHemisphere = globePixels / 2
-            self.pixelsPerLonDegree.append(globePixels / 360.0)
-            self.pixelsPerLonRadian.append(globePixels / (2 * pi))
-            self.pixelsInLonHemisphere.append(pixelsInLonHemisphere)
-            self.globePixels.append(globePixels)
-            globePixels *= 2
-
-    def fromLLtoPixel(self, ll, zoom):
-         px = round(self.pixelsInLonHemisphere + ll[0] * self.pixelsPerLonDegree[zoom])
-         f = minmax(sin(DEG_TO_RAD * ll[1]), -0.9999, 0.9999)
-         py = round(self.pixelsInLonHemisphere + 0.5 * log((1 + f) / (1 - f)) * -self.pixelsPerLonRadian[zoom])
-         return (px, py)
-
-    def fromPixelToLL(self, pixel, zoom):
-         pixelsInLonHemisphere = self.pixelsInLonHemisphere[zoom]
-         lon = (pixel[0] - pixelsInLonHemisphere) / self.pixelsPerLonDegree[zoom]
-         g = (pixel[1] - pixelsInLonHemisphere) / -self.pixelsPerLonRadian[zoom]
-         lat = RAD_TO_DEG * (2 * atan(exp(g)) - 0.5 * pi)
-         return (lon, lat)
-
 
 
 class RenderThread:
@@ -68,8 +33,7 @@ class RenderThread:
         # Obtain <Map> projection
         self.prj = mapnik.Projection(self.m.srs)
         # Projects between tile pixel co-ordinates and LatLong (EPSG:4326)
-        self.tileproj = GoogleProjection(maxZoom+1)
-
+        self.tileproj = spherical_mercator.SphericalMercator(maxZoom + 1)
 
     def render_tile(self, tile_uri, x, y, z):
 
@@ -78,18 +42,18 @@ class RenderThread:
         p1 = ((x + 1) * 256, y * 256)
 
         # Convert to LatLong (EPSG:4326)
-        l0 = self.tileproj.fromPixelToLL(p0, z)
-        l1 = self.tileproj.fromPixelToLL(p1, z)
+        l0 = self.tileproj.lonlat_for_pixel(p0, z)
+        l1 = self.tileproj.lonlat_for_pixel(p1, z)
 
         # Convert to map projection (e.g. mercator co-ords EPSG:900913)
-        c0 = self.prj.forward(mapnik.Coord(l0[0],l0[1]))
-        c1 = self.prj.forward(mapnik.Coord(l1[0],l1[1]))
+        c0 = self.prj.forward(mapnik.Coord(l0[0], l0[1]))
+        c1 = self.prj.forward(mapnik.Coord(l1[0], l1[1]))
 
         # Bounding box for the tile
         if hasattr(mapnik, 'mapnik_version') and mapnik.mapnik_version() >= 800:
-            bbox = mapnik.Box2d(c0.x,c0.y, c1.x,c1.y)
+            bbox = mapnik.Box2d(c0.x, c0.y, c1.x, c1.y)
         else:
-            bbox = mapnik.Envelope(c0.x,c0.y, c1.x,c1.y)
+            bbox = mapnik.Envelope(c0.x, c0.y, c1.x, c1.y)
         render_size = 256
         self.m.resize(render_size, render_size)
         self.m.zoom_to_box(bbox)
@@ -101,10 +65,9 @@ class RenderThread:
         mapnik.render(self.m, im)
         im.save(tile_uri, 'png256')
 
-
     def loop(self):
         while True:
-            #Fetch a tile from the queue and render it
+            # Fetch a tile from the queue and render it
             r = self.q.get()
             if (r == None):
                 self.q.task_done()
@@ -127,13 +90,12 @@ class RenderThread:
             self.q.task_done()
 
 
-
 def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown", num_threads=NUM_THREADS, tms_scheme=False):
 
-    print("render_tiles(", bbox, mapfile, tile_dir, minZoom,maxZoom, name,")")
+    print("render_tiles(", bbox, mapfile, tile_dir, minZoom, maxZoom, name, ")")
 
     if not os.path.isdir(tile_dir):
-         os.mkdir(tile_dir)
+        os.mkdir(tile_dir)
 
     # Launch rendering threads
     queue = Queue(32)
@@ -143,17 +105,17 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown",
         renderer = RenderThread(tile_dir, mapfile, queue, printLock, maxZoom)
         render_thread = threading.Thread(target=renderer.loop)
         render_thread.start()
-        #print "Started render thread %s" % render_thread.getName()
+        # print "Started render thread %s" % render_thread.getName()
         renderers[i] = render_thread
 
-    gprj = GoogleProjection(maxZoom + 1)
+    gprj = spherical_mercator.SphericalMercator(maxZoom + 1)
 
     ll0 = (bbox[0], bbox[3])
     ll1 = (bbox[2], bbox[1])
 
     for z in range(minZoom, maxZoom + 1):
-        px0 = gprj.fromLLtoPixel(ll0, z)
-        px1 = gprj.fromLLtoPixel(ll1, z)
+        px0 = gprj.pixel_for_lonlat(ll0, z)
+        px1 = gprj.pixel_for_lonlat(ll1, z)
 
         # check if we have directories in place
         zoom = "%s" % z
@@ -167,7 +129,7 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown",
             str_x = "%s" % x
             if not os.path.isdir(tile_dir + zoom + '/' + str_x):
                 os.mkdir(tile_dir + zoom + '/' + str_x)
-            for y in range(int(px0[1]/256.0),int(px1[1]/256.0)+1):
+            for y in range(int(px0[1]/256.0), int(px1[1]/256.0)+1):
                 # Validate x co-ordinate
                 if (y < 0) or (y >= 2**z):
                     continue
@@ -193,15 +155,12 @@ def render_tiles(bbox, mapfile, tile_dir, minZoom=1, maxZoom=18, name="unknown",
         renderers[i].join()
 
 
-
 if __name__ == "__main__":
 
     tiles_name = os.environ["TILES_NAME"]
     tiles_bbox = os.environ["TILES_BBOX"]
     tiles_style_url = os.environ["TILES_MAPNIK_STYLE"]
     tiles_dir = "/tiles/%(tiles_name)s/" % locals()
-
-
 
     minZoom = 16
     maxZoom = 16
