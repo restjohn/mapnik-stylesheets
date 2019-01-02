@@ -34,7 +34,7 @@ class GoogleProjection:
         self.globePixels = []
         globePixels = 256
         for _ in range(0, levels):
-            pixelsInLonHemisphere = globePixels
+            pixelsInLonHemisphere = globePixels / 2
             self.pixelsPerLonDegree.append(globePixels / 360.0)
             self.pixelsPerLonRadian.append(globePixels / (2 * pi))
             self.pixelsInLonHemisphere.append(pixelsInLonHemisphere)
